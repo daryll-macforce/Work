@@ -1,14 +1,45 @@
-# Run as administrator
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))  
-{  
-  Write-Warning "Please run this script as an Administrator!"
-  Break
-}
-
 # Load Windows Forms assembly for message boxes
 Add-Type -AssemblyName System.Windows.Forms
 
-# Function to check if a program is installed
+function Manage-SystemRestore {
+    $systemRestoreEnabled = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -Name "RPSessionInterval").RPSessionInterval -ne 0
+    
+    if (-not $systemRestoreEnabled) {
+        $enablePrompt = [System.Windows.Forms.MessageBox]::Show(
+            "System Restore is currently disabled. Would you like to enable it?",
+            "Enable System Restore",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($enablePrompt -eq 'Yes') {
+            try {
+                Enable-ComputerRestore -Drive "C:\"
+                [System.Windows.Forms.MessageBox]::Show("System Restore has been enabled.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                $systemRestoreEnabled = $true
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Failed to enable System Restore. Continuing without creating a restore point.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                return
+            }
+        }
+        else {
+            [System.Windows.Forms.MessageBox]::Show("System Restore will remain disabled. Continuing without creating a restore point.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            return
+        }
+    }
+    
+    if ($systemRestoreEnabled) {
+        try {
+            Checkpoint-Computer -Description "Before installing/uninstalling software" -RestorePointType "MODIFY_SETTINGS"
+            [System.Windows.Forms.MessageBox]::Show("Restore point created successfully.", "Restore Point", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to create restore point. Continuing without creating one.", "Warning", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        }
+    }
+}
+
 function Is-Installed($programName) {
     $x86 = ((Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall") |
         Where-Object { $_.GetValue( "DisplayName" ) -like "*$programName*" } ).Length -gt 0
@@ -37,18 +68,7 @@ if ($glaryInstalled -or $shutupInstalled) {
     )
 
     if ($uninstallPrompt -eq 'Yes') {
-        # Prompt for restore point creation
-        $restorePointPrompt = [System.Windows.Forms.MessageBox]::Show(
-            "Do you want to create a system restore point before uninstalling the software?",
-            "Create Restore Point",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
-
-        if ($restorePointPrompt -eq 'Yes') {
-            Checkpoint-Computer -Description "Before uninstalling Glary Utilities and O&O ShutUp10" -RestorePointType "MODIFY_SETTINGS"
-            [System.Windows.Forms.MessageBox]::Show("Restore point created successfully.", "Restore Point", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        }
+        Manage-SystemRestore
 
         # Uninstall Glary Utilities if installed
         if ($glaryInstalled) {
@@ -71,18 +91,7 @@ if ($glaryInstalled -or $shutupInstalled) {
     )
 
     if ($installPrompt -eq 'Yes') {
-        # Prompt for restore point creation
-        $restorePointPrompt = [System.Windows.Forms.MessageBox]::Show(
-            "Do you want to create a system restore point before installing the software?",
-            "Create Restore Point",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
-
-        if ($restorePointPrompt -eq 'Yes') {
-            Checkpoint-Computer -Description "Before installing Glary Utilities and O&O ShutUp10" -RestorePointType "MODIFY_SETTINGS"
-            [System.Windows.Forms.MessageBox]::Show("Restore point created successfully.", "Restore Point", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        }
+        Manage-SystemRestore
 
         # Install Glary Utilities and O&O ShutUp10
         choco install glaryutilities-free -y
