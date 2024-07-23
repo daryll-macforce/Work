@@ -78,8 +78,8 @@ if ($glaryInstalled -or $shutupInstalled) {
     Write-Log "User response to install prompt: $installPrompt"
 
     if ($installPrompt -eq 'Yes') {
-        Write-Log "Attempting to install Glary Utilities"
-        choco install glaryutilities-free -y
+        Write-Log "Attempting to install latest version of Glary Utilities"
+        choco install glaryutilities-free --version 0.0.0 -y --force
         Write-Log "Glary Utilities install command completed"
 
         Write-Log "Attempting to install O&O ShutUp10"
