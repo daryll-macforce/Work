@@ -61,7 +61,7 @@ if ($installPrompt -eq 'Yes') {
     Install-Program $oosuPath "O&O ShutUp10"
 
     # Download and install Glary Utilities
-    $glaryPath = Download-FromGitHub "susetup.exe"
+    $glaryPath = Download-FromGitHub "gusetup.exe"
     Install-Program $glaryPath "Glary Utilities"
 
     # Cleanup
