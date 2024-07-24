@@ -67,27 +67,27 @@ if ($glaryInstalled -or $shutupInstalled) {
 
         [System.Windows.Forms.MessageBox]::Show("Uninstallation complete.", "Uninstall Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     }
-} else {
-    $installPrompt = [System.Windows.Forms.MessageBox]::Show(
-        "Glary Utilities and O&O ShutUp10 are not installed. Do you want to install them?",
-        "Install Software",
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Question
-    )
+}
 
-    Write-Log "User response to install prompt: $installPrompt"
+$installPrompt = [System.Windows.Forms.MessageBox]::Show(
+    "Do you want to install/update Glary Utilities and O&O ShutUp10 to the latest versions?",
+    "Install/Update Software",
+    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+    [System.Windows.Forms.MessageBoxIcon]::Question
+)
 
-    if ($installPrompt -eq 'Yes') {
-        Write-Log "Attempting to install latest version of Glary Utilities"
-        choco install glaryutilities-free --version 0.0.0 -y --force
-        Write-Log "Glary Utilities install command completed"
+Write-Log "User response to install/update prompt: $installPrompt"
 
-        Write-Log "Attempting to install O&O ShutUp10"
-        choco install shutup10 -y
-        Write-Log "O&O ShutUp10 install command completed"
+if ($installPrompt -eq 'Yes') {
+    Write-Log "Attempting to install/update latest version of Glary Utilities"
+    choco upgrade glaryutilities-free -y --force
+    Write-Log "Glary Utilities install/update command completed"
 
-        [System.Windows.Forms.MessageBox]::Show("Installation complete.", "Install Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    }
+    Write-Log "Attempting to install/update O&O ShutUp10"
+    choco upgrade shutup10 -y --force
+    Write-Log "O&O ShutUp10 install/update command completed"
+
+    [System.Windows.Forms.MessageBox]::Show("Installation/Update complete.", "Install/Update Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
 
 Write-Log "Script completed"
