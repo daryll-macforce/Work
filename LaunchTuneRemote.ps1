@@ -21,6 +21,13 @@ function Is-Installed($programName) {
     return $x86 -or $x64
 }
 
+function Is-OOShutUp10Present {
+    $shutupPath = "$env:ProgramData\chocolatey\lib\shutup10\tools\OOSU10.exe"
+    $exists = Test-Path $shutupPath
+    Write-Log "O&O ShutUp10 executable presence: $exists"
+    return $exists
+}
+
 # Check if Chocolatey is installed, if not, install it
 Write-Log "Checking Chocolatey installation"
 if (!(Get-Command choco.exe -ErrorAction SilentlyContinue)) {
@@ -40,34 +47,7 @@ if (!(Get-Command choco.exe -ErrorAction SilentlyContinue)) {
 
 # Check if Glary Utilities and O&O ShutUp10 are installed
 $glaryInstalled = Is-Installed "Glary Utilities"
-$shutupInstalled = Is-Installed "O&O ShutUp10"
-
-if ($glaryInstalled -or $shutupInstalled) {
-    $uninstallPrompt = [System.Windows.Forms.MessageBox]::Show(
-        "Glary Utilities and/or O&O ShutUp10 are already installed. Do you want to uninstall them?",
-        "Uninstall Software",
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Question
-    )
-
-    Write-Log "User response to uninstall prompt: $uninstallPrompt"
-
-    if ($uninstallPrompt -eq 'Yes') {
-        if ($glaryInstalled) {
-            Write-Log "Attempting to uninstall Glary Utilities"
-            choco uninstall glaryutilities-free -y
-            Write-Log "Glary Utilities uninstall command completed"
-        }
-
-        if ($shutupInstalled) {
-            Write-Log "Attempting to uninstall O&O ShutUp10"
-            choco uninstall shutup10 -y
-            Write-Log "O&O ShutUp10 uninstall command completed"
-        }
-
-        [System.Windows.Forms.MessageBox]::Show("Uninstallation complete.", "Uninstall Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    }
-}
+$shutupInstalled = Is-OOShutUp10Present
 
 $installPrompt = [System.Windows.Forms.MessageBox]::Show(
     "Do you want to install/update Glary Utilities and O&O ShutUp10 to the latest versions?",
@@ -86,6 +66,12 @@ if ($installPrompt -eq 'Yes') {
     Write-Log "Attempting to install/update O&O ShutUp10"
     choco upgrade shutup10 -y --force
     Write-Log "O&O ShutUp10 install/update command completed"
+
+    if (Is-OOShutUp10Present) {
+        [System.Windows.Forms.MessageBox]::Show("O&O ShutUp10 has been successfully installed/updated. You can find it at: $env:ProgramData\chocolatey\lib\shutup10\tools\OOSU10.exe", "O&O ShutUp10 Info", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("O&O ShutUp10 installation could not be verified. Please check the log file for more information.", "Warning", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    }
 
     [System.Windows.Forms.MessageBox]::Show("Installation/Update complete.", "Install/Update Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
