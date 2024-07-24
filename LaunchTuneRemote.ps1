@@ -11,69 +11,64 @@ function Write-Log {
 
 Write-Log "Script started"
 
-function Is-Installed($programName) {
-    Write-Log "Checking if $programName is installed"
-    $x86 = ((Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall") |
-        Where-Object { $_.GetValue( "DisplayName" ) -like "*$programName*" } ).Length -gt 0
-    $x64 = ((Get-ChildItem "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall") |
-        Where-Object { $_.GetValue( "DisplayName" ) -like "*$programName*" } ).Length -gt 0
-    Write-Log "$programName installation status: $($x86 -or $x64)"
-    return $x86 -or $x64
-}
-
-function Is-OOShutUp10Present {
-    $shutupPath = "$env:ProgramData\chocolatey\lib\shutup10\tools\OOSU10.exe"
-    $exists = Test-Path $shutupPath
-    Write-Log "O&O ShutUp10 executable presence: $exists"
-    return $exists
-}
-
-# Check if Chocolatey is installed, if not, install it
-Write-Log "Checking Chocolatey installation"
-if (!(Get-Command choco.exe -ErrorAction SilentlyContinue)) {
-    Write-Log "Chocolatey not found, attempting to install"
+function Download-FromGitHub {
+    param($fileName)
+    $url = "https://github.com/daryll-macforce/Work/raw/main/Apps/$fileName"
+    $outPath = Join-Path $env:TEMP $fileName
+    Write-Log "Downloading $fileName from GitHub"
     try {
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-        Write-Log "Chocolatey installed successfully"
+        Invoke-WebRequest -Uri $url -OutFile $outPath
+        Write-Log "$fileName downloaded successfully"
+        return $outPath
     }
     catch {
-        Write-Log "Error installing Chocolatey: $($_.Exception.Message)"
-        [System.Windows.Forms.MessageBox]::Show("Failed to install Chocolatey. Script cannot continue.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        exit
+        Write-Log ("Error downloading " + $fileName + ": " + $_.Exception.Message)
+        return $null
     }
 }
 
-# Check if Glary Utilities and O&O ShutUp10 are installed
-$glaryInstalled = Is-Installed "Glary Utilities"
-$shutupInstalled = Is-OOShutUp10Present
+function Install-Program {
+    param($filePath, $programName)
+    if ($filePath) {
+        Write-Log "Starting installation of $programName"
+        try {
+            Start-Process -FilePath $filePath -Wait
+            Write-Log "$programName installation completed"
+        }
+        catch {
+            Write-Log ("Error installing " + $programName + ": " + $_.Exception.Message)
+            [System.Windows.Forms.MessageBox]::Show("Failed to install $programName. Please check the log for details.", "Installation Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    }
+    else {
+        Write-Log "$programName installation file not found"
+        [System.Windows.Forms.MessageBox]::Show("$programName installation file not found. Please check your internet connection and try again.", "File Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
 
 $installPrompt = [System.Windows.Forms.MessageBox]::Show(
-    "Do you want to install/update Glary Utilities and O&O ShutUp10 to the latest versions?",
-    "Install/Update Software",
+    "Do you want to install O&O ShutUp10 and Glary Utilities?",
+    "Install Software",
     [System.Windows.Forms.MessageBoxButtons]::YesNo,
     [System.Windows.Forms.MessageBoxIcon]::Question
 )
 
-Write-Log "User response to install/update prompt: $installPrompt"
+Write-Log "User response to install prompt: $installPrompt"
 
 if ($installPrompt -eq 'Yes') {
-    Write-Log "Attempting to install/update latest version of Glary Utilities"
-    choco upgrade glaryutilities-free -y --force
-    Write-Log "Glary Utilities install/update command completed"
+    # Download and install O&O ShutUp10
+    $oosuPath = Download-FromGitHub "OOSU10.exe"
+    Install-Program $oosuPath "O&O ShutUp10"
 
-    Write-Log "Attempting to install/update O&O ShutUp10"
-    choco upgrade shutup10 -y --force
-    Write-Log "O&O ShutUp10 install/update command completed"
+    # Download and install Glary Utilities
+    $glaryPath = Download-FromGitHub "susetup.exe"
+    Install-Program $glaryPath "Glary Utilities"
 
-    if (Is-OOShutUp10Present) {
-        [System.Windows.Forms.MessageBox]::Show("O&O ShutUp10 has been successfully installed/updated. You can find it at: $env:ProgramData\chocolatey\lib\shutup10\tools\OOSU10.exe", "O&O ShutUp10 Info", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("O&O ShutUp10 installation could not be verified. Please check the log file for more information.", "Warning", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-    }
+    # Cleanup
+    if ($oosuPath) { Remove-Item $oosuPath -ErrorAction SilentlyContinue }
+    if ($glaryPath) { Remove-Item $glaryPath -ErrorAction SilentlyContinue }
 
-    [System.Windows.Forms.MessageBox]::Show("Installation/Update complete.", "Install/Update Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    [System.Windows.Forms.MessageBox]::Show("Installation process completed. Please check the log for any issues.", "Installation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
 
 Write-Log "Script completed"
